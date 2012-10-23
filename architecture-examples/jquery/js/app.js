@@ -5,9 +5,6 @@ var hoodie = new Hoodie("http://localhost:9292/localhost:5984");
 jQuery(function( $ ) {
 	'use strict';
 
-	
-	hoodie.funk = 12;
-
 	var Utils = {
 		pluralize: function( count, word ) {
 			return count === 1 ? word : word + 's';
@@ -44,12 +41,12 @@ jQuery(function( $ ) {
 			list.on( 'blur', '.edit', this.update );
 			list.on( 'click', '.destroy', this.destroy );
 
-			hoodie.my.store.on('change', this.render.bind(this) )
+			hoodie.store.on('change', this.render.bind(this) )
 		},
 		render: function() {
 			var _this = this;
 
-			hoodie.my.store.findAll('todo')
+			hoodie.store.findAll('todo')
 			.done(function(todos) {
 				_this.$todoList.html( _this.todoTemplate( todos ) );
 				_this.$main.toggle( !!todos.length );
@@ -71,7 +68,7 @@ jQuery(function( $ ) {
 		},
 		toggleAll: function() {
 			var isChecked = $( this ).prop('checked');
-			hoodie.myStore.updateAll('todo', {
+			hoodieStore.updateAll('todo', {
 				completed: isChecked
 			});
 		},
@@ -85,7 +82,7 @@ jQuery(function( $ ) {
 			return count;
 		},
 		destroyCompleted: function() {
-			hoodie.my.store.destroyAll( function(todo) {
+			hoodie.store.destroyAll( function(todo) {
 				return todo.completed
 			})
 		},
@@ -93,7 +90,7 @@ jQuery(function( $ ) {
 		// returns the corresponding todo in the todos array
 		getTodo: function( elem, callback ) {
 			var id = $( elem ).closest('li').data('id');
-			hoodie.my.store.find('todo', id)
+			hoodie.store.find('todo', id)
 			.done(callback)
 		},
 		create: function(e) {
@@ -102,7 +99,7 @@ jQuery(function( $ ) {
 			if ( e.which !== App.ENTER_KEY || !val ) {
 				return;
 			}
-			hoodie.my.store.create('todo', {
+			hoodie.store.create('todo', {
 				title: val,
 				completed: false
 			})
@@ -110,7 +107,7 @@ jQuery(function( $ ) {
 		},
 		toggle: function() {
 			App.getTodo( this, function( todo ) {
-				hoodie.my.store.update('todo', todo.id, {
+				hoodie.store.update('todo', todo.id, {
 					completed: ! todo.completed
 				})
 			});
@@ -127,17 +124,17 @@ jQuery(function( $ ) {
 			var val = $.trim( $(this).removeClass('editing').val() );
 			App.getTodo( this, function( todo ) {
 				if ( val ) {
-					hoodie.my.store.update('todo', todo.id, {
+					hoodie.store.update('todo', todo.id, {
 						title : val
 					})
 				} else {
-					hoodie.my.store.destroy('todo', todo.id)
+					hoodie.store.destroy('todo', todo.id)
 				}
 			});
 		},
 		destroy: function() {
 			App.getTodo( this, function( todo ) {
-				hoodie.my.store.destroy('todo', todo.id)
+				hoodie.store.destroy('todo', todo.id)
 			});
 		}
 	};
