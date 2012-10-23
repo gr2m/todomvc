@@ -1,27 +1,22 @@
+// url would be usually something like https://api.todo.hood.ie
+var hoodie = new Hoodie("http://localhost:9292/localhost:5984");
+
 /*global jQuery, Handlebars */
 jQuery(function( $ ) {
 	'use strict';
 
+	
+	hoodie.funk = 12;
+
 	var Utils = {
-		// https://gist.github.com/1308368
-		uuid: function(a,b){for(b=a='';a++<36;b+=a*51&52?(a^15?8^Math.random()*(a^20?16:4):4).toString(16):'-');return b},
 		pluralize: function( count, word ) {
 			return count === 1 ? word : word + 's';
-		},
-		store: function( namespace, data ) {
-			if ( arguments.length > 1 ) {
-				return localStorage.setItem( namespace, JSON.stringify( data ) );
-			} else {
-				var store = localStorage.getItem( namespace );
-				return ( store && JSON.parse( store ) ) || [];
-			}
 		}
 	};
 
 	var App = {
 		init: function() {
 			this.ENTER_KEY = 13;
-			this.todos = Utils.store('todos-jquery');
 			this.cacheElements();
 			this.bindEvents();
 			this.render();
@@ -48,17 +43,23 @@ jQuery(function( $ ) {
 			list.on( 'keypress', '.edit', this.blurOnEnter );
 			list.on( 'blur', '.edit', this.update );
 			list.on( 'click', '.destroy', this.destroy );
+
+			hoodie.my.store.on('change', this.render.bind(this) )
 		},
 		render: function() {
-			this.$todoList.html( this.todoTemplate( this.todos ) );
-			this.$main.toggle( !!this.todos.length );
-			this.$toggleAll.prop( 'checked', !this.activeTodoCount() );
-			this.renderFooter();
-			Utils.store( 'todos-jquery', this.todos );
+			var _this = this;
+
+			hoodie.my.store.findAll('todo')
+			.done(function(todos) {
+				_this.$todoList.html( _this.todoTemplate( todos ) );
+				_this.$main.toggle( !!todos.length );
+				_this.$toggleAll.prop( 'checked', !_this.activeTodoCount(todos) );
+				_this.renderFooter(todos);
+			});
 		},
-		renderFooter: function() {
-			var todoCount = this.todos.length,
-				activeTodoCount = this.activeTodoCount(),
+		renderFooter: function(todos) {
+			var todoCount = todos.length,
+				activeTodoCount = this.activeTodoCount(todos),
 				footer = {
 					activeTodoCount: activeTodoCount,
 					activeTodoWord: Utils.pluralize( activeTodoCount, 'item' ),
@@ -70,14 +71,13 @@ jQuery(function( $ ) {
 		},
 		toggleAll: function() {
 			var isChecked = $( this ).prop('checked');
-			$.each( App.todos, function( i, val ) {
-				val.completed = isChecked;
+			hoodie.myStore.updateAll('todo', {
+				completed: isChecked
 			});
-			App.render();
 		},
-		activeTodoCount: function() {
+		activeTodoCount: function(todos) {
 			var count = 0;
-			$.each( this.todos, function( i, val ) {
+			$.each( todos, function( i, val ) {
 				if ( !val.completed ) {
 					count++;
 				}
@@ -85,25 +85,16 @@ jQuery(function( $ ) {
 			return count;
 		},
 		destroyCompleted: function() {
-			var todos = App.todos,
-				l = todos.length;
-			while ( l-- ) {
-				if ( todos[l].completed ) {
-					todos.splice( l, 1 );
-				}
-			}
-			App.render();
+			hoodie.my.store.destroyAll( function(todo) {
+				return todo.completed
+			})
 		},
 		// Accepts an element from inside the ".item" div and
 		// returns the corresponding todo in the todos array
 		getTodo: function( elem, callback ) {
 			var id = $( elem ).closest('li').data('id');
-			$.each( this.todos, function( i, val ) {
-				if ( val.id === id ) {
-					callback.apply( App, arguments );
-					return false;
-				}
-			});
+			hoodie.my.store.find('todo', id)
+			.done(callback)
 		},
 		create: function(e) {
 			var $input = $(this),
@@ -111,19 +102,18 @@ jQuery(function( $ ) {
 			if ( e.which !== App.ENTER_KEY || !val ) {
 				return;
 			}
-			App.todos.push({
-				id: Utils.uuid(),
+			hoodie.my.store.create('todo', {
 				title: val,
 				completed: false
-			});
+			})
 			$input.val('');
-			App.render();
 		},
 		toggle: function() {
-			App.getTodo( this, function( i, val ) {
-				val.completed = !val.completed;
+			App.getTodo( this, function( todo ) {
+				hoodie.my.store.update('todo', todo.id, {
+					completed: ! todo.completed
+				})
 			});
-			App.render();
 		},
 		edit: function() {
 			$(this).closest('li').addClass('editing').find('.edit').focus();
@@ -135,19 +125,19 @@ jQuery(function( $ ) {
 		},
 		update: function() {
 			var val = $.trim( $(this).removeClass('editing').val() );
-			App.getTodo( this, function( i ) {
+			App.getTodo( this, function( todo ) {
 				if ( val ) {
-					this.todos[ i ].title = val;
+					hoodie.my.store.update('todo', todo.id, {
+						title : val
+					})
 				} else {
-					this.todos.splice( i, 1 );
+					hoodie.my.store.destroy('todo', todo.id)
 				}
-				this.render();
 			});
 		},
 		destroy: function() {
-			App.getTodo( this, function( i ) {
-				this.todos.splice( i, 1 );
-				this.render();
+			App.getTodo( this, function( todo ) {
+				hoodie.my.store.destroy('todo', todo.id)
 			});
 		}
 	};
